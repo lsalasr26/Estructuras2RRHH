@@ -1,4 +1,4 @@
-import sys
+import sys, os
 from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QDateEdit, QGridLayout, QLabel, QLineEdit, QSpinBox, QPushButton, QMessageBox
 from PyQt5.QtCore import QDate, Qt
 
@@ -205,24 +205,34 @@ class MainWindow(QMainWindow):
         self.total.setValue(total)
 
 
-    #Limpiar los campos
+    # Limpiar los campos
     def clear_fields(self):
         self.start_date_edit.setDate(QDate.currentDate())
-        for row in range(1, 8):  
-            for column in range(1, 8):  
+        self.employee_id_edit.clear() 
+        for row in range(1, 9):  
+            for column in range(1, 8):  # Asegurar que el rango de columnas cubre todos los posibles widgets
                 item = self.layout.itemAtPosition(row, column)
                 if item is not None:
                     widget = item.widget()
                     if isinstance(widget, QSpinBox):
                         widget.setValue(0)
+                    elif isinstance(widget, QLineEdit):  # Agregar esta condición para manejar QLineEdits
+                        widget.clear()
 
-    #Mensaje de resumen
+
+    #Mensaje de resumen y guardado de datos
     def send_data(self):
         total_hours = self.h_regulares.value()
         employee = self.employee_id_edit.text()
         total = self.total.value()
+        start_date = self.start_date_edit.date().toString(Qt.ISODate) 
+        end_date = self.end_date_edit.date().toString(Qt.ISODate)
+        extra_hours_count = self.h_extra.value()
+        extra_hours_amount = self.h_extra_monto.value()
+        regular_hours_count = self.h_regulares.value()
+        regular_hours_amount = self.h_regulares_monto.value()
 
-        if not employee :
+        if not employee:
             msgBox = QMessageBox()
             msgBox.setIcon(QMessageBox.Warning)
             msgBox.setText("Debe digitar el Id del empleado.")
@@ -230,22 +240,33 @@ class MainWindow(QMainWindow):
             msgBox.setStandardButtons(QMessageBox.Ok)
             msgBox.exec()
         else:
-            if total_hours > 96:
-                msgBox = QMessageBox()
-                msgBox.setIcon(QMessageBox.Warning)
-                msgBox.setText("El total de horas corrientes sobrepasa las 48 horas por semana.")
-                msgBox.setWindowTitle("Error")
-                msgBox.setStandardButtons(QMessageBox.Ok)
-                msgBox.exec()
+            message = (f"Datos enviados correctamente.\n\n"
+                       f"Si desea cononcer los detalles revise el txt generado")
+            try:
+                with open("datos_salario.txt", "a+") as file:  
+                    file.seek(0, os.SEEK_END)
+                    if file.tell() == 0:  
+                        file.write("Fecha_Inicio, Fecha_Fin, Empleado_ID, Horas_Extra_Cant, "
+                                    "Horas_Extra_Monto, Horas_Reg_Cant, Horas_Reg_Monto, "
+                                    "Monto_Total\n")
+
+                    # Escribir los datos
+                    file_data = (f"{start_date}, {end_date}, {employee}, {extra_hours_count}, "
+                                f"${extra_hours_amount}, {regular_hours_count}, ${regular_hours_amount}, "
+                                f"${total}\n")
+                    file.write(file_data)
+            except Exception as e:
+                QMessageBox.warning(self, "Error", f"Ocurrió un error al guardar los datos: {str(e)}")
             else:
                 msgBox = QMessageBox()
                 msgBox.setIcon(QMessageBox.Information)
-                msgBox.setText(f"Datos enviados correctamente.\n\nEmpleado ID: {employee}.\n\nMonto a percibir: ${total}")
+                msgBox.setText(message)
                 msgBox.setWindowTitle("Éxito")
                 msgBox.setStandardButtons(QMessageBox.Ok)
                 returnValue = msgBox.exec()
                 if returnValue == QMessageBox.Ok:
                     self.clear_fields()
+
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
